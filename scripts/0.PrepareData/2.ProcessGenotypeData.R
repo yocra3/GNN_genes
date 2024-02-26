@@ -4,7 +4,7 @@
 #'#################################################################################
 #'#################################################################################
 
-docker run -v $PWD:$PWD -w $PWD -it gnn_rsession:1.0 bash
+docker run -v $PWD:$PWD -w $PWD -it gnn_rsession:1.2 bash
 
 ## Load libraries
 library(tidyverse)
@@ -24,6 +24,8 @@ colnames(phenotypes) <- c("AllelicComposition", "AlleleSymbol",
 	"GeneticBackground", "MammalianPhenotypeID", "PubMedID",
     "MGIMarkerID")
 
+
+
 ## Select only KO alleles
 ko_alleles <- subset(allele, 
     AlleleAttribute %in% c("Null/knockout|Reporter", "Reporter|Null/knockout", "Null/knockout"))
@@ -34,7 +36,7 @@ sel_alleles <- unique(ko_alleles$AlleleSymbol)
 wt_alleles <- paste0(unique(ko_alleles$MarkerSymbol), "<+>")
 
 ko_alleles %>% 
-    group_by(MGIMarkerID) %>%
+    group_by(MarkerSymbol) %>%
     summarize(Function = any(!is.na(HighlevelMammalianPhenotypeID))) %>%
     group_by(Function) %>%
     summarize(n = n())
@@ -58,7 +60,7 @@ mapAlleles <- function(vec){
     res <- sapply(vec, function(x) {
 
         if (x %in% sel_alleles){
-          out <- subset(ko_alleles, AlleleSymbol == x)$MGIAlleleID
+          out <- subset(ko_alleles, AlleleSymbol == x)$MGIMarkerID
         } 
         else if (x %in% wt_alleles){
             out <- ""
@@ -71,7 +73,7 @@ mapAlleles <- function(vec){
 }
 
 good_phenotypes2 <- mutate(good_phenotypes2,
-    MGIMarkerList = sapply(AlleleList, mapAlleles)
+    MGIMarkerList = unlist(parallel::mclapply(AlleleList, mapAlleles, mc.cores = 10))
 )
 
 markerList <- lapply(strsplit(good_phenotypes2$MGIMarkerList, ","), function(x){
@@ -116,3 +118,5 @@ dir.create("results/preprocess/")
 save(phenotypes_summary, good_phenotypes_final, phenotypes,ko_alleles,
     file = "results/preprocess/MGI_phenotypes_genotypes_intermediates.Rdata")
 save(phenotypes_summary_noeffect, file = "results/preprocess/MGI_phenotypes_genotypes_preprocess.Rdata")
+
+

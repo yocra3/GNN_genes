@@ -1,5 +1,5 @@
 ---
-title: "Overview of mice KO data"
+title: "Overview of mice KO data present in GO"
 author: "Carlos Ruiz"
 date: "`r Sys.Date()`"
 output: html_document
@@ -18,7 +18,8 @@ In this document, I will show an overview of the data downloaded from the MGI da
 library(tidyverse)
 library(ontologyIndex)
 
-load("../results/preprocess/final_mice_genotype_phenotype.Rdata")
+load("../results/preprocess/final_mice_genotype_phenotype_go_filtered.Rdata")
+load("../results/preprocess/GO_gene_map.Rdata")
 mpo_ont <- get_ontology("../data/MGI/MPheno_OBO.ontology")
 
 ```
@@ -32,16 +33,15 @@ The same gene could have different alleles in different genetic backgrounds. Eac
 MGI data also reported alleles with no effect on the phenotype. We selected those genes where none of their alleles impacted on the phenotype, and added them genes to the final dataset. These genes were considered as homozygous for the knock-out by default.
 
 ```{r}
-all_genos <- unlist(strsplit(genotype_phenotype$MGIMarkerGenotype, ","))
+all_genos <- unlist(strsplit(genotype_phenotype_go$MGIMarkerGenotype, ","))
 all_genes <- unlist(strsplit(all_genos, "/"))
 all_genes <- all_genes[grep("MGI", all_genes)]
 ```
 
-
-Overall, our final dataset contains `r nrow(genotype_phenotype)` combinations of gene alleles and genetic backgrounds corresponding to `r length(unique(all_genes))` different genes. `r sum(genotype_phenotype$PhenotypeID == "")` combinations of genes corresponded to alleles without phenotypic effect.
+We selected GO terms with more than 5 genes, without children and containing exclusive KO genes (i.e. a KO gene was only present in that GO term). Overall, `r length(unique(sing_leaves_go_gene$GO_ID))` GO terms were selected. After selecting those combinations of KO alleles were all genes were present in at least a GO terms, we had `r nrow(genotype_phenotype_go)` combinations of gene alleles and genetic backgrounds corresponding to `r length(unique(all_genes))` different genes. `r sum(genotype_phenotype_go$PhenotypeID == "")` combinations of genes corresponded to alleles without phenotypic effect.
 
 ```{r}
-no_effect <- subset(genotype_phenotype, TopPhenotypeIDs == "")$MGIMarkerGenotype 
+no_effect <- subset(genotype_phenotype_go, TopPhenotypeIDs == "")$MGIMarkerGenotype 
 data.frame(Type = c("Effect on phenotype", "No effect"),
            N = c(length(unique(all_genes)) - length(unique(no_effect)), 
                  length(unique(no_effect)))) %>%
@@ -70,7 +70,7 @@ ggplot(df_gene_freq, aes(x = Group, y = N)) +
 Most of the genes were only present in one combination of alleles. However, we found some genes present in more than 50 gene combinations.
 
 ```{r}
-marker_list <- strsplit(subset(genotype_phenotype, !is.na(PhenotypeID))$MGIMarkerGenotype, ",")
+marker_list <- strsplit(subset(genotype_phenotype_go, !is.na(PhenotypeID))$MGIMarkerGenotype, ",")
 n_hom <- sapply(marker_list, function(x){
   sum(unlist(strsplit(x, "/", fixed = TRUE)) == "2")
 })
@@ -103,7 +103,7 @@ Most of the allele combination only had one gene. Nonetheless, we had combinatio
 Allele combinations were associated to different phenotypes using the Mammalian Phenotype Ontology (MPO). The MPO is a phenotype ontology which relates the phenotypes hierarchicaly. For the sake of simplicity, we mapped all phenotypes to any of the 28 phenotypes in the level 2 of the hierarchy. Importantly, each phenotype can be children of multiple level 2 phenotypes and each allele combination can affect multiple phenotypes. Therefore, each allele combination can be mapped to multiple level 2 phenotypes.
 
 ```{r}
-all_phenos <- strsplit(genotype_phenotype$TopPhenotypeIDs, ",")
+all_phenos <- strsplit(genotype_phenotype_go$TopPhenotypeIDs, ",")
 
 pheno_tab <- table(unlist(all_phenos))
 names(pheno_tab) <- sapply(names(pheno_tab), function(x){

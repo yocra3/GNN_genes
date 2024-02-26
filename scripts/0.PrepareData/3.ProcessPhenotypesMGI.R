@@ -1,11 +1,11 @@
 #'#################################################################################
 #'#################################################################################
-#' Process MGI pheenotype data
+#' Process MGI phenotype data
 #' Generate table with genotypes and phenotypes
 #'#################################################################################
 #'#################################################################################
 
-docker run -v $PWD:$PWD -w $PWD -it gnn_rsession:1.1 bash
+docker run -v $PWD:$PWD -w $PWD -it gnn_rsession:1.2 bash
 
 ## Load libraries
 library(tidyverse)
@@ -42,3 +42,4 @@ genotype_phenotype <- mutate(phenotypes_summary_noeffect,
         out <- paste(un_phenos, collapse = ",")
     })
 )
+save(genotype_phenotype, file =  "results/preprocess/final_mice_genotype_phenotype.Rdata")

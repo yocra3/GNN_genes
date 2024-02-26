@@ -1,0 +1,55 @@
+---
+title: "Overview of mice KO data present in the databases"
+author: "Carlos Ruiz"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+## Introduction
+
+In this document, I will show an overview of the data downloaded from the MGI database.
+
+```{r}
+library(tidyverse)
+
+load("../results/preprocess/final_mice_genotype_phenotype.Rdata")
+load("../results/preprocess/final_mice_genotype_phenotype_go_filtered.Rdata")
+load("../results/preprocess/GO_gene_map.Rdata")
+load("../results/preprocess/MGI_compartment_map.Rdata")
+load("../results/preprocess/MGI_tissue_map.Rdata")
+uniprot <- read_delim("../results/preprocess/MGI_uniprot_map.tsv", delim = "\t")
+```
+
+```{r}
+all_genos_l <- gsub("\\/[1-2]", "", genotype_phenotype$MGIMarkerGenotype) %>%
+    strsplit(",")
+
+## Tissue
+tissue_genes <- unique(tissue_top$MGIMarkerAccessionID)
+genotype_phenotype_tissue <- genotype_phenotype[unlist(parallel::mclapply(all_genos_l, function(x) all(x %in% tissue_genes), mc.cores = 20 )),]
+
+## Compartment
+compartment_genes <- unique(compartment_top$MGIMarkerAccessionID)
+genotype_phenotype_compartment <- genotype_phenotype[unlist(parallel::mclapply(all_genos_l, function(x) all(x %in% compartment_genes), mc.cores = 20 )),]
+
+## Uniprot
+uniprot_genes <- subset(uniprot, !is.na(UniProtIDs))$MGIMarkerAccessionID %>% unique()
+genotype_phenotype_uniprot <- genotype_phenotype[unlist(parallel::mclapply(all_genos_l, function(x) all(x %in% uniprot_genes), mc.cores = 20 )),]
+
+## All 
+com_genes <- Reduce(intersect, list(tissue_genes, compartment_genes, uniprot_genes, unique(sing_leaves_go_gene$MGIMarkerID)))
+genotype_phenotype_comb <- genotype_phenotype[unlist(parallel::mclapply(all_genos_l, function(x) all(x %in% com_genes), mc.cores = 20 )),]
+
+tibble(Features = c("None", "Tissue", "Compartment", "Uniprot", "GO", "All features"),
+      Combinations = sapply(list(genotype_phenotype, genotype_phenotype_tissue,genotype_phenotype_compartment, genotype_phenotype_uniprot, genotype_phenotype_go, genotype_phenotype_comb ), nrow),
+      Genes = sapply(list(genotype_phenotype, genotype_phenotype_tissue,genotype_phenotype_compartment, genotype_phenotype_uniprot, genotype_phenotype_go, genotype_phenotype_comb ), 
+        function(x) gsub("\\/[1-2]", "", x$MGIMarkerGenotype) %>% strsplit(",") %>% unlist() %>% unique() %>% length())
+) %>%
+  knitr::kable()
+```
+
